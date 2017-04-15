@@ -53,7 +53,7 @@ function install() {
 
 function start() {
     server = tools.startGame(args.game);
-    tools.text('Server started!', true);
+    tools.text('Server started!');
     startTime = new Date();
     upAndRunningTime = undefined;
     setTimeout(function(){
