@@ -7,7 +7,9 @@ var fs = require('fs');
 var W3CWebSocket = require('websocket').w3cwebsocket;
 var Promise = require('promise');
 
-var interval, gameName, thisGame, server, rcon;
+const times = require('./lib/constants');
+
+var interval, thisGame, server, rcon;
 
 var startTime = undefined;
 var upAndRunningTime = undefined;
@@ -20,18 +22,9 @@ var previousUpdateStopped = undefined;
 var updateTimeFile = null;
 var count = 1;
 
-var millisecond    = 1;
-var quarter_second  = 250   * millisecond;
-var half_second     = 2     * quarter_second;
-var second          = 2     * half_second;
-var quarter_minute  = 15    * second;
-var half_minute     = 2     * quarter_minute;
-var minute          = 2     * half_minute;
-var quarter_hour    = 15    * minute;
-var half_hour       = 2     * quarter_hour;
-var hour            = 2     * half_hour;
+var checkInterval = times.half_hour;
 
-var checkInterval = half_hour;
+var connected = false;
 
 function install() {
     if (!tools.folderExists(config.steam.path)) {
@@ -48,7 +41,9 @@ function install() {
         updateTimeFile = thisGame.path + '/'+thisGame.server.name+'_update_time.txt';
     }
 
-    tools.text('Everything OK');
+    if (!server) {
+        tools.text('Steam and '+thisGame.server.name+' are installed');
+    }
 }
 
 function start() {
@@ -68,7 +63,7 @@ function start() {
                     console.log(error);
                 }
             );
-    }, second);
+    }, times.second);
 }
 
 function rconConnect() {
@@ -77,10 +72,15 @@ function rconConnect() {
         rcon.onopen = function () {
             tools.text('RCON: Connected');
             count = 0;
+            connected = true;
             resolve(rcon);
         };
         rcon.onerror = function (error) {
-            if ( count > half_hour ) {
+            if (connected === true) {
+                tools.text('RCON: Connection failed!');
+                connected = false;
+            }
+            if ( count > times.half_hour ) {
                 tools.text('RCON: Connection failed!');
                 reject(rcon);
             }
@@ -94,11 +94,17 @@ function rconConnect() {
                             reject(error);
                         }
                     );
-            }, millisecond);
+            }, times.millisecond);
             count++;
         };
 
-        // rcon.onclose = function () {
+        rcon.onclose = function () {
+            if (connected === true) {
+                tools.text('RCON: Connection closed!');
+                connected = false;
+                tools.text('RCON: Reconnecting...');
+                rconConnect();
+            }
         //     tools.text('RCON: Retrying connection in 5 seconds');
         //     setTimeout(function () {
         //         return rconConnect()
@@ -110,20 +116,20 @@ function rconConnect() {
         //                     reject(error);
         //                 }
         //             );
-        //     }, 5 * second);
+        //     }, 5 * times.second);
         //     count++;
-        // };
+        };
 
-        rcon.onmessage = function (e) {
-            var data = JSON.parse(e.data);
-            if (data.Message && data.Identifier >= 0) {
+        rcon.onmessage = function (msg) {
+            var data = JSON.parse(msg.data);
+            if (data.Message && data.Identifier >= 0 && !ignoreRow(data.Message)) {
                 tools.log(data.Message);
                 if (data.Message === 'Server startup complete') {
                     upAndRunningTime = new Date();
-                    var startupTime = Math.ceil((upAndRunningTime - startTime) / second);
+                    var startupTime = Math.ceil((upAndRunningTime - startTime) / times.second);
                     if (updating) {
                         previousUpdateStopped = new Date();
-                        previousUpdateSet(Math.ceil((previousUpdateStopped - previousUpdateStarted) / second));
+                        previousUpdateSet(Math.ceil((previousUpdateStopped - previousUpdateStarted) / times.second));
                         updating = false;
                     } else {
                         previousUpdateSet(startupTime + 30);
@@ -139,23 +145,11 @@ function rconConnect() {
 function ignoreRow(message) {
     return !!(
         message.match(/^(NullReferenceException)/i)
-        // || message.match(/^(Saved .* ents, serialization.*, write.*, disk.* totalstall)/i)
-        // || message.match(/^(Saving complete)/i)
+        || message.match(/^(Saved .* ents, serialization.*, write.*, disk.* totalstall)/i)
     );
 }
 
-function rconCmd(command) {
-    tools.text('RCON: Sending command: ' + command);
-    return new Promise(function (resolve, reject) {
-        rcon.send(JSON.stringify({
-            Identifier: -1,
-            Message: command,
-            Name: "WebRcon"
-        }));
-        resolve(rcon);
-    });
-}
-function rconCmdWait(command, time) {
+function rconCmd(command, time) {
     tools.text('RCON: Sending command: ' + command);
     return new Promise(function (resolve, reject) {
         rcon.send(JSON.stringify({
@@ -169,59 +163,49 @@ function rconCmdWait(command, time) {
     });
 }
 
-function rconSay(message) {
+function rconSay(message, time) {
     return new Promise(function (resolve, reject) {
-        rconCmd("say " + message).then(function () {
-            resolve(true);
-        });
+        rconCmd("say " + message, time)
+            .then(function () {
+                resolve(true);
+            });
     });
-}
-
-function rconSayRestart(message, time) {
-    return new Promise(function(resolve, reject) {
-        rconSay(message);
-        setTimeout(function(){
-            resolve();
-        }, time);
-    })
 }
 
 function restart() {
     return new Promise(function (resolve, reject) {
-        // rconSayRestart('New updates, restarting in 1 hour', half_hour)
-        // .then(function() { return rconSayRestart('New updates, restarting in 30 minutes', quarter_hour) })
-        // .then(function() { return rconSayRestart('New updates, restarting in 15 minutes', 5 * minute) })
-        // .then(function() { return rconSayRestart('New updates, restarting in 10 minutes', 5 * minute) })
-        rconSayRestart('New updates, restarting in 10 minutes'+previousUpdateMessage(), 5 * minute)
-        .then(function() { return rconSayRestart('New updates, restarting in 5 minutes'+previousUpdateMessage(), minute) })
-        .then(function() { return rconSayRestart('New updates, restarting in 4 minutes'+previousUpdateMessage(), minute) })
-        .then(function() { return rconSayRestart('New updates, restarting in 3 minutes'+previousUpdateMessage(), minute) })
-        .then(function() { return rconSayRestart('New updates, restarting in 2 minutes'+previousUpdateMessage(), minute) })
-        .then(function() { return rconSayRestart('New updates, restarting in 1 minute'+previousUpdateMessage(), quarter_minute) })
-        .then(function() { return rconSayRestart('New updates, restarting in 45 seconds'+previousUpdateMessage(), quarter_minute) })
-        .then(function() { return rconSayRestart('New updates, restarting in 30 seconds'+previousUpdateMessage(), quarter_minute) })
-        .then(function() { return rconSayRestart('New updates, restarting in 15 seconds'+previousUpdateMessage(), 5 * second) })
-        .then(function() { return rconSayRestart('New updates, restarting in 10...', second) })
-        .then(function() { return rconSayRestart('New updates, restarting in 9...', second) })
-        .then(function() { return rconSayRestart('New updates, restarting in 8...', second) })
-        .then(function() { return rconSayRestart('New updates, restarting in 7...', second) })
-        .then(function() { return rconSayRestart('New updates, restarting in 6...', second) })
-        .then(function() { return rconSayRestart('New updates, restarting in 5...', second) })
-        .then(function() { return rconSayRestart('New updates, restarting in 4...', second) })
-        .then(function() { return rconSayRestart('New updates, restarting in 3...', second) })
-        .then(function() { return rconSayRestart('New updates, restarting in 2...', second) })
-        .then(function() { return rconSayRestart('New updates, restarting in 1...', second) })
-        .then(function() { return rconSayRestart('New updates, restarting NOW!', second) })
-        .then(function() { return rconCmdWait('server.save', second) })
-        .then(function() { return rconCmdWait('quit', 5 * second) })
-        .then(function() { return resolve() })
+        rconSay('New updates, restarting in 30 minutes'+previousUpdateMessage(), 10 * times.minute)
+            .then(function() { return rconSay('New updates, restarting in 20 minutes'+previousUpdateMessage(), 10 * times.minute) })
+            .then(function() { return rconSay('New updates, restarting in 10 minutes'+previousUpdateMessage(), 5 * times.minute) })
+            .then(function() { return rconSay('New updates, restarting in 5 minutes'+previousUpdateMessage(), times.minute) })
+            .then(function() { return rconSay('New updates, restarting in 4 minutes'+previousUpdateMessage(), times.minute) })
+            .then(function() { return rconSay('New updates, restarting in 3 minutes'+previousUpdateMessage(), times.minute) })
+            .then(function() { return rconSay('New updates, restarting in 2 minutes'+previousUpdateMessage(), times.minute) })
+            .then(function() { return rconSay('New updates, restarting in 1 minute'+previousUpdateMessage(), times.quarter_minute) })
+            .then(function() { return rconSay('New updates, restarting in 45 seconds'+previousUpdateMessage(), times.quarter_minute) })
+            .then(function() { return rconSay('New updates, restarting in 30 seconds'+previousUpdateMessage(), times.quarter_minute) })
+            .then(function() { return rconSay('New updates, restarting in 15 seconds'+previousUpdateMessage(), 5 * times.second) })
+            .then(function() { return rconSay('New updates, restarting in 10...', times.second) })
+            .then(function() { return rconSay('New updates, restarting in 9...', times.second) })
+            .then(function() { return rconSay('New updates, restarting in 8...', times.second) })
+            .then(function() { return rconSay('New updates, restarting in 7...', times.second) })
+            .then(function() { return rconSay('New updates, restarting in 6...', times.second) })
+            .then(function() { return rconSay('New updates, restarting in 5...', times.second) })
+            .then(function() { return rconSay('New updates, restarting in 4...', times.second) })
+            .then(function() { return rconSay('New updates, restarting in 3...', times.second) })
+            .then(function() { return rconSay('New updates, restarting in 2...', times.second) })
+            .then(function() { return rconSay('New updates, restarting in 1...', times.second) })
+            .then(function() { return rconSay('New updates, restarting NOW!', times.second) })
+            .then(function() { return rconCmd('server.save', times.second) })
+            .then(function() { return rconCmd('quit', 5 * times.second) })
+            .then(function() { return resolve() })
     });
 }
 
 function checkUpdatesTimeout() {
     clearTimeout(interval);
 
-    tools.text('Setting update interval, every: '+tools.secondsToString(checkInterval / second));
+    tools.text('Checking updates in: '+tools.secondsToString(checkInterval / times.second));
 
     interval = setTimeout(function () {
         checkUpdates();
@@ -231,7 +215,6 @@ function checkUpdatesTimeout() {
 
 function checkUpdates() {
     clearTimeout(interval);
-    tools.text('Checking updates');
     install();
 
     cd(thisGame.path);
@@ -241,7 +224,6 @@ function checkUpdates() {
     var previous_version, newest_version;
 
     cd(config.steam.path);
-    // execSync("./steamcmd.sh +login anonymous +app_info_update 1 +app_info_print " + thisGame.appId + " +quit > " + new_file, {stdio: [0, 1, 2]});
     execSync("./steamcmd.sh +login anonymous +app_info_update 1 +app_info_print " + thisGame.appId + " +quit > " + new_file);
 
     previous_version = parseFile(latest_file);
@@ -250,26 +232,30 @@ function checkUpdates() {
     fs.unlinkSync(latest_file);
 
     if (previous_version && previous_version !== newest_version) {
-        console.log('Old: ', previous_version);
-        console.log('New: ', newest_version);
+        tools.text('New updates!');
+
+        // console.log('Old: ', previous_version);
+        // console.log('New: ', newest_version);
 
         if (server) {
             restart().then(function () {
+                server = undefined;
                 previousUpdateStarted = new Date();
                 updating = true;
-                // tools.text('Restarting server NOW');
-                // server.kill('SIGHUP');
                 tools.text('Server shutdown');
                 tools.text('Starting in 5 seconds');
                 setTimeout(function () {
                     install();
                     start();
-                }, 5 * second);
+                }, 5 * times.second);
             });
         }
-    } else if (server) {
-        tools.text('Updates checked, nothing new.');
+    }
+    else if (server) {
         checkUpdatesTimeout();
+    }
+    else {
+        tools.text('Server is up-to-date');
     }
 }
 
@@ -301,29 +287,23 @@ function previousUpdateMessage() {
 }
 
 if (args.game) {
-    gameName = args.game;
-    thisGame = config.games[gameName];
+    thisGame = config.games[args.game];
 
     if (args.command) {
         if (args.command == 'install') {
             install();
-            start();
         }
 
         if (args.command == 'check') {
             checkUpdates();
         }
 
-        if (args.command == 'update') {
-            install();
-        }
-
         if (args.command == 'start') {
+            install();
             start();
         }
 
-        if (args.command == 'updateStart') {
-            install();
+        if (args.command == 'plain-start') {
             start();
         }
     }

@@ -4,17 +4,21 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "install": "node index.js game=rust install",
+    "check": "node index.js game=rust check",
+    "update": "npm run install",
+    "start": "node index.js game=rust start",
+    "plain-start": "node index.js game=rust plain-start"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cli-color": "^1.1.0",
-    "moment": "^2.15.1",
-    "promise": "^7.1.1",
-    "rcon": "^1.0.2",
-    "shelljs": "^0.7.4",
-    "sourcecon": "^0.2.0",
-    "websocket": "^1.0.23"
+    "cli-color": "1.1.0",
+    "moment": "2.15.1",
+    "promise": "7.1.1",
+    "rcon": "1.0.2",
+    "shelljs": "0.7.4",
+    "sourcecon": "0.2.0",
+    "websocket": "1.0.23"
   }
 }
