@@ -129,7 +129,9 @@ function rconConnect() {
                     var startupTime = Math.ceil((upAndRunningTime - startTime) / times.second);
                     if (updating) {
                         previousUpdateStopped = new Date();
-                        previousUpdateSet(Math.ceil((previousUpdateStopped - previousUpdateStarted) / times.second));
+                        var updateTimeTook = Math.ceil((previousUpdateStopped - previousUpdateStarted) / times.second);
+                        tools.text('Update took: '+tools.secondsToString(updateTimeTook));
+                        previousUpdateSet(updateTimeTook);
                         updating = false;
                     } else {
                         previousUpdateSet(startupTime + 30);
@@ -273,7 +275,6 @@ function previousUpdateGet() {
 }
 
 function previousUpdateSet(time) {
-    tools.text('Update took: '+tools.secondsToString(time));
     fs.writeFileSync(updateTimeFile, time);
 }
 
