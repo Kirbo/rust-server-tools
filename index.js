@@ -42,8 +42,6 @@ function install() {
       thisGame.path + '/' + thisGame.server.name + '_update_time.txt';
   }
 
-  tools.checkBashrc(thisGame);
-
   if (!server) {
     tools.text('Steam and ' + thisGame.server.name + ' are installed');
   }
