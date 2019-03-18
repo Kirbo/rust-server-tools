@@ -26,6 +26,8 @@ If the instructions here doesn't work, check the necessary dependencies [in here
 
 ```
 yarn install
+cp example-config.js config.js
+nano config.js
 yarn install-rust
 ```
 
