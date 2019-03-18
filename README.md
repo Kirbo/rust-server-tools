@@ -25,6 +25,8 @@ If the instructions here doesn't work, check the necessary dependencies [in here
 ## Install
 
 ```
+git clone https://github.com/kirbo/rust-server-tools.git
+cd rust-server-tools
 yarn install
 cp example-config.js config.js
 nano config.js
