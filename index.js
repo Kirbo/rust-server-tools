@@ -7,7 +7,13 @@ var fs = require('fs');
 var W3CWebSocket = require('websocket').w3cwebsocket;
 var Promise = require('promise');
 
-const times = require('./lib/constants');
+const {
+  half_hour,
+  minute,
+  quarter_minute,
+  second,
+  millisecond
+} = require('./lib/constants');
 
 var interval, thisGame, server, rcon;
 
@@ -22,7 +28,7 @@ var previousUpdateStopped = undefined;
 var updateTimeFile = null;
 var count = 1;
 
-var checkInterval = times.half_hour;
+var checkInterval = half_hour;
 
 var connected = false;
 
@@ -61,7 +67,7 @@ function start() {
         console.log(error);
       }
     );
-  }, times.second);
+  }, second);
 }
 
 function rconConnect() {
@@ -85,7 +91,7 @@ function rconConnect() {
         tools.text('RCON: Connection failed!');
         connected = false;
       }
-      if (count > times.half_hour) {
+      if (count > half_hour) {
         tools.text('RCON: Connection failed!');
         reject(rcon);
       }
@@ -98,7 +104,7 @@ function rconConnect() {
             reject(error);
           }
         );
-      }, times.millisecond);
+      }, millisecond);
       count++;
     };
 
@@ -120,7 +126,7 @@ function rconConnect() {
       //                     reject(error);
       //                 }
       //             );
-      //     }, 5 * times.second);
+      //     }, 5 * second);
       //     count++;
     };
 
@@ -131,12 +137,12 @@ function rconConnect() {
         if (data.Message === 'Server startup complete') {
           upAndRunningTime = new Date();
           var startupTime = Math.ceil(
-            (upAndRunningTime - startTime) / times.second
+            (upAndRunningTime - startTime) / second
           );
           if (updating) {
             previousUpdateStopped = new Date();
             var updateTimeTook = Math.ceil(
-              (previousUpdateStopped - previousUpdateStarted) / times.second
+              (previousUpdateStopped - previousUpdateStarted) / second
             );
             tools.text('Update took: ' + tools.secondsToString(updateTimeTook));
             previousUpdateSet(updateTimeTook);
@@ -187,115 +193,31 @@ function rconSay(message, time) {
   });
 }
 
-function restart() {
-  return new Promise(function(resolve, reject) {
-    rconSay(
-      'New updates, restarting in 30 minutes' + previousUpdateMessage(),
-      10 * times.minute
-    )
-      .then(function() {
-        return rconSay(
-          'New updates, restarting in 20 minutes' + previousUpdateMessage(),
-          10 * times.minute
-        );
-      })
-      .then(function() {
-        return rconSay(
-          'New updates, restarting in 10 minutes' + previousUpdateMessage(),
-          5 * times.minute
-        );
-      })
-      .then(function() {
-        return rconSay(
-          'New updates, restarting in 5 minutes' + previousUpdateMessage(),
-          times.minute
-        );
-      })
-      .then(function() {
-        return rconSay(
-          'New updates, restarting in 4 minutes' + previousUpdateMessage(),
-          times.minute
-        );
-      })
-      .then(function() {
-        return rconSay(
-          'New updates, restarting in 3 minutes' + previousUpdateMessage(),
-          times.minute
-        );
-      })
-      .then(function() {
-        return rconSay(
-          'New updates, restarting in 2 minutes' + previousUpdateMessage(),
-          times.minute
-        );
-      })
-      .then(function() {
-        return rconSay(
-          'New updates, restarting in 1 minute' + previousUpdateMessage(),
-          times.quarter_minute
-        );
-      })
-      .then(function() {
-        return rconSay(
-          'New updates, restarting in 45 seconds' + previousUpdateMessage(),
-          times.quarter_minute
-        );
-      })
-      .then(function() {
-        return rconSay(
-          'New updates, restarting in 30 seconds' + previousUpdateMessage(),
-          times.quarter_minute
-        );
-      })
-      .then(function() {
-        return rconSay(
-          'New updates, restarting in 15 seconds' + previousUpdateMessage(),
-          5 * times.second
-        );
-      })
-      .then(function() {
-        return rconSay('New updates, restarting in 10...', times.second);
-      })
-      .then(function() {
-        return rconSay('New updates, restarting in 9...', times.second);
-      })
-      .then(function() {
-        return rconSay('New updates, restarting in 8...', times.second);
-      })
-      .then(function() {
-        return rconSay('New updates, restarting in 7...', times.second);
-      })
-      .then(function() {
-        return rconSay('New updates, restarting in 6...', times.second);
-      })
-      .then(function() {
-        return rconSay('New updates, restarting in 5...', times.second);
-      })
-      .then(function() {
-        return rconSay('New updates, restarting in 4...', times.second);
-      })
-      .then(function() {
-        return rconSay('New updates, restarting in 3...', times.second);
-      })
-      .then(function() {
-        return rconSay('New updates, restarting in 2...', times.second);
-      })
-      .then(function() {
-        return rconSay('New updates, restarting in 1...', times.second);
-      })
-      .then(function() {
-        return rconSay('New updates, restarting NOW!', times.second);
-      })
-      .then(function() {
-        return rconCmd('server.save', times.second);
-      })
-      .then(function() {
-        return rconCmd('quit', 5 * times.second);
-      })
-      .then(function() {
-        return resolve();
-      });
-  });
+async function restart() {
+  await rconSay('New updates, restarting in 30 minutes' + previousUpdateMessage(), 10 * minute);
+  await rconSay('New updates, restarting in 20 minutes' + previousUpdateMessage(), 10 * minute);
+  await rconSay('New updates, restarting in 10 minutes' + previousUpdateMessage(), 5 * minute);
+  await rconSay('New updates, restarting in 5 minutes' + previousUpdateMessage(), minute);
+  await rconSay('New updates, restarting in 4 minutes' + previousUpdateMessage(), minute);
+  await rconSay('New updates, restarting in 3 minutes' + previousUpdateMessage(), minute);
+  await rconSay('New updates, restarting in 2 minutes' + previousUpdateMessage(), minute);
+  await rconSay('New updates, restarting in 1 minute' + previousUpdateMessage(), quarter_minute);
+  await rconSay('New updates, restarting in 45 seconds' + previousUpdateMessage(), quarter_minute);
+  await rconSay('New updates, restarting in 30 seconds' + previousUpdateMessage(), quarter_minute);
+  await rconSay('New updates, restarting in 15 seconds' + previousUpdateMessage(), 5 * second);
+  await rconSay('New updates, restarting in 10...', second);
+  await rconSay('New updates, restarting in 9...', second);
+  await rconSay('New updates, restarting in 8...', second);
+  await rconSay('New updates, restarting in 7...', second);
+  await rconSay('New updates, restarting in 6...', second);
+  await rconSay('New updates, restarting in 5...', second);
+  await rconSay('New updates, restarting in 4...', second);
+  await rconSay('New updates, restarting in 3...', second);
+  await rconSay('New updates, restarting in 2...', second);
+  await rconSay('New updates, restarting in 1...', second);
+  await rconSay('New updates, restarting NOW!', second);
+  await rconCmd('server.save', second);
+  return rconCmd('quit', 5 * second);
 }
 
 function checkUpdatesTimeout() {
@@ -303,7 +225,7 @@ function checkUpdatesTimeout() {
 
   tools.text(
     'Checking updates in: ' +
-      tools.secondsToString(checkInterval / times.second)
+      tools.secondsToString(checkInterval / second)
   );
 
   interval = setTimeout(function() {
@@ -358,7 +280,7 @@ function checkUpdates() {
         setTimeout(function() {
           install();
           start();
-        }, 5 * times.second);
+        }, 5 * second);
       });
     }
   } else if (server) {
