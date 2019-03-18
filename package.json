@@ -6,7 +6,7 @@
   "scripts": {
     "install-rust": "node index.js game=rust install",
     "check": "node index.js game=rust check",
-    "update": "npm run install",
+    "update": "yarn install-rust",
     "start": "node index.js game=rust start",
     "plain-start": "node index.js game=rust plain-start"
   },
